@@ -1,7 +1,6 @@
-name: DRL_GR
-
+name: RL_GR
 dependencies:
-  - python=3.6
+  - python=3.7
   - matplotlib
   - numpy
   - scipy
@@ -10,6 +9,7 @@ dependencies:
   - pillow
   - keras
   - tensorflow=1.14
+  - pip:
+    - gym==0.12.1
+    - torch --find-links https://download.pytorch.org/whl/cpu
 
-
-  
