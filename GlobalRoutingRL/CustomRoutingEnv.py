@@ -162,7 +162,7 @@ class CustomRoutingEnv(gym.Env):
         for i, direction in enumerate(move_mapping):
             adjacent_location = np.array(self.current_point) + np.array(direction)
             if 0 <= adjacent_location[0] < grid_x and 0 <= adjacent_location[1] < grid_y and 0 <= adjacent_location[2] < grid_z:
-                self.current_state[6 + i] = self.capacity_info[tuple(adjacent_location)]
+                self.current_state[6 + i] = self.capacity_info[tuple(map(int, adjacent_location))]
             else:
                 self.current_state[6 + i] = -np.inf
     
