@@ -18,6 +18,7 @@ class CustomRoutingEnv(gym.Env):
 
     def initialize_state(self):
         # self.current_net_name = next(iter(self.nets_mst.keys()))
+        self.net_visited = {}
         self.net_index = 0
         self.pin_pair_index = 0
         first_mst = self.nets_mst[self.net_index][self.pin_pair_index]
@@ -25,6 +26,8 @@ class CustomRoutingEnv(gym.Env):
         self.start_point = first_mst[0]
         self.current_point = self.start_point
         self.target_point = first_mst[1]
+        self.capacity_info[int(self.current_point[0]), int(self.current_point[1]), int(self.current_point[2])] -= 1
+        self.net_visited.setdefault(self.net_index, set()).add(self.start_point)
 
         state = np.zeros(12)
         state[0:3] = self.start_point
@@ -179,23 +182,31 @@ class CustomRoutingEnv(gym.Env):
         done = False
 
         # Check bounds and whether the new location exceeds capacity
-        if 0 <= new_location[0] < grid_x and 0 <= new_location[1] < grid_y and 0 <= new_location[2] < grid_z and self.capacity_info[tuple(new_location)] > 0:
+        if 0 <= new_location[0] < grid_x and 0 <= new_location[1] < grid_y and 0 <= new_location[2] < grid_z and self.capacity_info[tuple(new_location)] > -10:
             # Valid move: update capacity at the current location
-            self.capacity_info[int(self.current_point[0]), int(self.current_point[1]), int(self.current_point[2])] -= 1
+            if new_location in self.net_visited.get(self.net_index, set()):
+                reward = 0
+            else:
+                self.net_visited.setdefault(self.net_index, set()).add(new_location)
+            self.capacity_info[int(new_location[0]), int(new_location[1]), int(new_location[2])] -= 1
+
+            if self.capacity_info[tuple(new_location)] < 0:
+                reward -= 10 * abs(self.capacity_info[tuple(new_location)])  # Penalize for exceeding capacity
 
             # Update the current point to the new location
-            self.current_point = new_location
+            self.current_point = new_location 
 
             # Update the state vector
             self.update_state()
 
             # Check if the target is reached
             if np.array_equal(self.current_point, self.target_point):
-                reward = 10  # Reward for reaching the target
+                reward = 10  # Reward for reaching the target,  use += or = ???
                 # Move to the next start and target pin
                 self.pin_pair_index += 1
                 if self.pin_pair_index >= len(self.nets_mst[self.net_index]):
                     # All pin pairs in the current net processed; move to the next net
+
                     self.net_index += 1
                     self.pin_pair_index = 0
                     if self.net_index >= len(self.nets_mst):
@@ -207,6 +218,9 @@ class CustomRoutingEnv(gym.Env):
                         next_mst = self.nets_mst[self.net_index][self.pin_pair_index]
                         self.start_point, self.target_point = next_mst
                         self.current_point = self.start_point
+                        if self.current_point not in self.net_visited.get(self.net_index, set()):
+                            self.net_visited.setdefault(self.net_index, set()).add(self.current_point)
+                            self.capacity_info[int(self.current_point[0]), int(self.current_point[1]), int(self.current_point[2])] -= 1
                         self.update_state()
 
 
@@ -215,15 +229,16 @@ class CustomRoutingEnv(gym.Env):
                     next_mst = self.nets_mst[self.net_index][self.pin_pair_index]
                     self.start_point, self.target_point = next_mst
                     self.current_point = self.start_point
+                    self.net_visited.setdefault(self.net_index, set()).add(self.start_point)
+                    self.capacity_info[int(self.current_point[0]), int(self.current_point[1]), int(self.current_point[2])] -= 1
                     self.update_state()
 
         # if the new location is out of bounds or exceeds capacity, do not update the current point or capacity      
         else:
             # Invalid move or exceeded capacity: do not update the current point or capacity
-            pass  # The reward remains -1 as initialized
+            reward = -5 
 
         return self.current_state, reward, done, {}
-
 
 
 
