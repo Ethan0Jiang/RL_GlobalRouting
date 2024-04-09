@@ -26,7 +26,7 @@ class CustomRoutingEnv(gym.Env):
         self.start_point = first_mst[0]
         self.current_point = self.start_point
         self.target_point = first_mst[1]
-        self.capacity_info[int(self.current_point[0]), int(self.current_point[1]), int(self.current_point[2])] -= 1
+        
         self.net_visited.setdefault(self.net_index, set()).add(self.start_point)
 
         state = np.zeros(12)
@@ -45,6 +45,8 @@ class CustomRoutingEnv(gym.Env):
 
         x, y, z = map(int, self.start_point)
         grid_x, grid_y, grid_z = self.grid_size
+
+        self.capacity_info[int(self.current_point[0]), int(self.current_point[1]), int(self.current_point[2])] -= 1
 
         # Set capacities for each direction, using -inf for out-of-bounds
         state[6] = self.capacity_info[x+1, y, z] if x+1 < grid_x else -np.inf
