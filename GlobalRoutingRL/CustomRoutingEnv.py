@@ -183,11 +183,13 @@ class CustomRoutingEnv(gym.Env):
         reward = -1  # Default reward for each step
         done = False
 
+        if np.dot(np.array(move), np.array(self.target_point) - np.array(self.current_point)) < 0:
+            reward -= 1
         # Check bounds and whether the new location exceeds capacity
         if 0 <= new_location[0] < grid_x and 0 <= new_location[1] < grid_y and 0 <= new_location[2] < grid_z and self.capacity_info[tuple(new_location)] > -10:
             # Valid move: update capacity at the current location
             if new_location in self.net_visited.get(self.net_index, set()):
-                reward = 0
+                reward = -1
             else:
                 self.net_visited.setdefault(self.net_index, set()).add(new_location)
             self.capacity_info[int(new_location[0]), int(new_location[1]), int(new_location[2])] -= 1
@@ -246,8 +248,10 @@ class CustomRoutingEnv(gym.Env):
 
 if __name__ == '__main__':
     # Example usage
-    env = CustomRoutingEnv(input_file_path='benchmark_reduced/test_benchmark_1.gr')
+    env = CustomRoutingEnv(input_file_path='benchmark/test_benchmark_1.gr')
     env.reset()
     action = env.action_space.sample()
+    print("action: ", action)
     next_state, reward, done, info = env.step(action)
     print(next_state, reward, done, info)
+
