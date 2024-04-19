@@ -95,12 +95,15 @@ class RoutingEnv(gym.Env):
     
     def init_new_pair_state(self, pin_pair_index):
         self.fail_count = 0
-        if pin_pair_index in self.pin_pair_idxs:
+        if self.pin_pair_index == pin_pair_index:
+            print(" repeat the same pin pair index:", pin_pair_index)
+        elif pin_pair_index in self.pin_pair_idxs:
             raise ValueError('The pin pair index is already visited')
         self.pin_pair_idxs.add(pin_pair_index)
 
         self.pin_pair_index = pin_pair_index
         pair = self.net_pin_pairs[self.pin_pair_index]
+        self.pin_pair_visited[self.pin_pair_index] = set()
 
         self.start_point = tuple(map(int, pair[0]))
         self.current_point = self.start_point
@@ -398,11 +401,18 @@ if __name__ == '__main__':
         # print(next_state, reward, done, info) # done is finish a 2-pin pair
         if done:
             if pin_pair_index < len(net_pin_pairs) - 1:
-                pin_pair_index = pin_pair_index + 1
-                env.update_env_info(Finish_pair=True)
-                env.init_new_pair_state(pin_pair_index) # update the self.nets_visited, update the self.capacity_info
+                if reward > 0:
+                    pin_pair_index = pin_pair_index + 1
+                    env.update_env_info(Finish_pair=True)
+                    env.init_new_pair_state(pin_pair_index) # update the self.nets_visited, update the self.capacity_info
+                    done = False
+                else: # fail to move to the next location
+                    env.init_new_pair_state(pin_pair_index)
+                    done = False
+            elif pin_pair_index == len(net_pin_pairs) - 1 and reward <=0: # fail to finish the last 2-pin pair
+                env.init_new_pair_state(pin_pair_index)
                 done = False
-            elif pin_pair_index == len(net_pin_pairs) - 1:
+            elif pin_pair_index == len(net_pin_pairs) - 1 and reward > 0:
                 net_index = net_index + 1
                 if net_index < len(nets_mst):
                     net_pin_pairs = nets_mst[net_index]
@@ -414,4 +424,5 @@ if __name__ == '__main__':
                     # all nets are finished
                     env.update_env_info(Finish_pair=True, Finish_net=True)
                     break
+    print("Finish all nets")
 
