@@ -41,7 +41,7 @@ class ReplayMemory:
     
 class Parameter:
     def __init__(self):
-        self.BATCH_SIZE = 64
+        self.BATCH_SIZE = 32
         self.GAMMA = 0.99
         self.EPS_START = 0.9
         self.EPS_END = 0.05
@@ -113,11 +113,15 @@ class DQN_Agent:
             for t in range(self.para.MAX_STEP):
                 action = self.select_action(state, self.output_dim, t)
                 next_state, reward, done, info = self.env.step(action.item())
+                i_reward_accum += reward
+                # print("action: ", action.item())
+                # print(state, reward, done, info)
                 reward = torch.tensor([reward], dtype=torch.float32)
 
                 if not done:
                     next_state = torch.tensor([next_state], dtype=torch.float32)
                 else:
+                    print(f'EPOCH {i_episode} STEP {t} SUCCESS!!!!!!!')
                     next_state = None
 
                 self.memory.push(state, action, next_state, reward)
@@ -125,8 +129,6 @@ class DQN_Agent:
                 state = next_state
 
                 self.optimize_model()
-
-                i_reward_accum += reward
 
                 if done:
                     break
@@ -136,11 +138,11 @@ class DQN_Agent:
 
             if i_episode % 5 == 0:
                 print(f'EPOCH {i_episode} : ')
-                print(state, reward, done, info)
+                # print(state, reward, done, info)
                 print("reward_accum: ", i_reward_accum)
 
 
-        print('Training Complete')
+        print('///////Training Complete////////')
 
     def test(self):
         total_reward = 0
@@ -159,6 +161,7 @@ class DQN_Agent:
                 state = torch.tensor([next_state], dtype=torch.float32) if not done else None
 
                 if done:
+                    print(f'EPOCH {i_episode} STEP {t} SUCCESS!!!!!!!')
                     break  # Exit the inner loop if the episode is done
 
             total_reward += episode_reward
@@ -166,12 +169,13 @@ class DQN_Agent:
 
         average_reward = total_reward / num_episodes
         print(f'Average Reward over {num_episodes} episodes: {average_reward}')
+        print('///////Testing Complete////////')
 
 
 
 if __name__ == '__main__':
-    env = Env(input_file_path='benchmark_reduced/test_benchmark_1.gr')
-    dqn = DQN_Agent(env)
+    env = Env(input_file_path='benchmark/test_benchmark_1.gr')
     env.reset()
+    dqn = DQN_Agent(env)
     dqn.train()
     dqn.test()
