@@ -47,8 +47,8 @@ class Parameter:
         self.EPS_END = 0.05
         self.EPS_DECAY = 200
         self.TARGET_UPDATE = 3
-        self.NUM_EPISODES = 30
-        self.MAX_STEP = 40
+        self.NUM_EPISODES = 50
+        self.MAX_STEP = 50
 
 class DQN_Agent:
     def __init__(self, env, capacity=100):
