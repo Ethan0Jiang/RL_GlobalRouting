@@ -16,7 +16,6 @@ class RoutingEnv(gym.Env):
         self.via_spacing = via_spacing
         self.grid_origin = grid_origin
         self.grid_dimensions = grid_dimensions
-        self.nets_scaled = nets_scaled
         self.adjustments = adjustments
 
         self.net_pin_pairs = [] # a list of 2 pin pair nets
@@ -48,6 +47,8 @@ class RoutingEnv(gym.Env):
         
         for adjustment in self.adjustments:
             x1, y1, z1, x2, y2, z2, change = adjustment[0] + adjustment[1] + [adjustment[2]]
+            if change == 0:
+                change = -np.inf # set the capacity to -inf if the capacity is 0
             # fix the ordering
             if x1 > x2:
                 x1, x2 = x2, x1
@@ -256,7 +257,7 @@ class RoutingEnv(gym.Env):
             
             if new_location == self.target_point:
                 print("Finish a 2-pin pair", self.current_point, self.target_point)
-                reward = 100
+                reward = 1000
                 done = True
 
         else:
@@ -372,13 +373,6 @@ def prepareTwoPinList_allNet(nets_scaled):
 if __name__ == '__main__':
 
     grid_size, vertical_capacity, horizontal_capacity, minimum_width, minimum_spacing, via_spacing, grid_origin, grid_dimensions, nets, nets_scaled, adjustments, net_name2id, net_id2name = load_input_file(input_file_path='benchmark_reduced/test_benchmark_1.gr')
-    # Example usage
-    # env = RoutingEnv(input_file_path='benchmark/test_benchmark_1.gr')
-
-    # env = RoutingEnv(grid_size=(10, 10, 2), vertical_capacity=[10, 10], horizontal_capacity=[10, 10], 
-    #                  minimum_width=[1, 1], minimum_spacing=[1, 1], via_spacing=[1, 1], grid_origin=[0, 0], grid_dimensions=[5, 5], 
-    #                 #  nets_scaled={'net1': {'net_info': ['net1', '1'], 'pins': [[1, 1, 1], [2, 2, 1], [3, 3, 1]]}, 'net2': {'net_info': ['net2', '2'], 'pins': [[4, 4, 1], [5, 5, 1], [6, 6, 1]]}}, 
-    #                  adjustments=[])
 
     env = RoutingEnv(grid_size=grid_size, vertical_capacity=vertical_capacity, horizontal_capacity=horizontal_capacity, 
                      minimum_width=minimum_width, minimum_spacing=minimum_spacing, via_spacing=via_spacing, 
@@ -394,6 +388,8 @@ if __name__ == '__main__':
     pin_pair_index = 0
     env.init_new_net_state(net_index, pin_pair_index, net_pin_pairs)
     done = False
+    episodes_per_pair = 10  # Repeat the routing of each 2-pin pair for 10 episodes
+    episodes_seccess = 0
     while not done:
         action = env.action_space.sample()
         # print("action: ", action)
@@ -402,9 +398,14 @@ if __name__ == '__main__':
         if done:
             if pin_pair_index < len(net_pin_pairs) - 1:
                 if reward > 0:
-                    pin_pair_index = pin_pair_index + 1
-                    env.update_env_info(Finish_pair=True)
-                    env.init_new_pair_state(pin_pair_index) # update the self.nets_visited, update the self.capacity_info
+                    if episodes_seccess < episodes_per_pair:
+                        episodes_seccess += 1
+                        env.init_new_pair_state(pin_pair_index) # update the self.nets_visited, update the self.capacity_info
+                    else: # finish the episodes for the current 2-pin pair
+                        pin_pair_index = pin_pair_index + 1 # move to the next 2-pin pair
+                        env.update_env_info(Finish_pair=True)
+                        env.init_new_pair_state(pin_pair_index)
+                        episodes_seccess = 0
                     done = False
                 else: # fail to move to the next location
                     env.init_new_pair_state(pin_pair_index)
@@ -413,16 +414,21 @@ if __name__ == '__main__':
                 env.init_new_pair_state(pin_pair_index)
                 done = False
             elif pin_pair_index == len(net_pin_pairs) - 1 and reward > 0:
-                net_index = net_index + 1
-                if net_index < len(nets_mst):
-                    net_pin_pairs = nets_mst[net_index]
-                    pin_pair_index = 0
-                    env.update_env_info(Finish_pair=True, Finish_net=True)
-                    env.init_new_net_state(net_index, pin_pair_index, net_pin_pairs)
+                if episodes_seccess < episodes_per_pair:
+                    episodes_seccess += 1
+                    env.init_new_pair_state(pin_pair_index)
                     done = False
                 else:
-                    # all nets are finished
-                    env.update_env_info(Finish_pair=True, Finish_net=True)
-                    break
+                    net_index = net_index + 1
+                    episodes_seccess = 0
+                    if net_index < len(nets_mst):
+                        net_pin_pairs = nets_mst[net_index]
+                        pin_pair_index = 0
+                        env.update_env_info(Finish_pair=True, Finish_net=True)
+                        env.init_new_net_state(net_index, pin_pair_index, net_pin_pairs)
+                        done = False
+                    else:
+                        # all nets are finished
+                        env.update_env_info(Finish_pair=True, Finish_net=True)
+                        break
     print("Finish all nets")
-
