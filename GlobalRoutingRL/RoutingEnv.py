@@ -16,7 +16,7 @@ class RoutingEnv(gym.Env):
         self.via_spacing = via_spacing
         self.grid_origin = grid_origin
         self.grid_dimensions = grid_dimensions
-        self.nets_scaled = nets_scaled
+        # self.nets_scaled = nets_scaled
         self.adjustments = adjustments
 
         self.net_pin_pairs = [] # a list of 2 pin pair nets
@@ -222,8 +222,8 @@ class RoutingEnv(gym.Env):
         # # Penalize for moving away from the target
         # if np.dot(np.array(move), np.array(self.target_point) - np.array(self.current_point)) < 0:
         #     reward -= 1
-        print("current_point: ", self.current_point)
-        print("fail_count: ", self.fail_count)
+        # print("current_point: ", self.current_point)
+        # print("fail_count: ", self.fail_count)
 
         # check if the new location is valid
         if self.check_valid_move(action, new_location):
