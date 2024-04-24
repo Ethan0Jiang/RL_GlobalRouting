@@ -47,7 +47,7 @@ class ReplayBuffer:
 
 
 class DQNAgent:
-    def __init__(self, state_size, action_size, buffer_size=10000, batch_size=64, gamma=0.99, lr=0.001, exploration_rate=1.0, exploration_decay=0.995, exploration_min=0.01):
+    def __init__(self, state_size, action_size, buffer_size=10000, batch_size=64, gamma=0.99, lr=0.001, exploration_rate=1.0, exploration_decay=0.995, exploration_min=0.01, env=None):
         self.state_size = state_size
         self.action_size = action_size
         self.buffer = ReplayBuffer(buffer_size, batch_size)
@@ -58,14 +58,21 @@ class DQNAgent:
         self.exploration_min = exploration_min
         self.model = DQN(state_size, action_size)  # Main DQN model
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
+        self.env = env
 
     def act(self, state):
+        possible_actions = self.env.get_possible_actions() # Get possible actions from the environment in a list of True/False
+
         if np.random.rand() <= self.exploration_rate:
-            return np.random.choice(self.action_size)  # Explore
+            # return a possible random action in possible_actions where value is True
+            return random.choice([i for i, x in enumerate(possible_actions) if x])
         else:
             state_tensor = torch.tensor(state, dtype=torch.float32)
             q_values = self.model(state_tensor)
-            return torch.argmax(q_values).item()  # Exploit
+            mask = torch.tensor(possible_actions, dtype=torch.bool)
+            q_values[~mask] = -float('inf')
+            return torch.argmax(q_values).item()
+            
 
     def replay(self):
         if len(self.buffer) < self.buffer.batch_size:
@@ -97,16 +104,16 @@ class DQNAgent:
 if __name__ == '__main__':
     # Initialize DQN agent with appropriate parameters
     state_size = 18  # Given state size
+    # state_size = 6  # Given state size
     action_size = 6  # 4 directions and 2 layer transitions
 
-    agent = DQNAgent(state_size, action_size, buffer_size=10000, batch_size=64, gamma=0.99, lr=0.001, exploration_rate=1.0, exploration_decay=0.995, exploration_min=0.99)
-
-
-    grid_size, vertical_capacity, horizontal_capacity, minimum_width, minimum_spacing, via_spacing, grid_origin, grid_dimensions, nets, nets_scaled, adjustments, net_name2id, net_id2name = load_input_file(input_file_path='benchmark_reduced/test_benchmark_1.gr')
+    grid_size, vertical_capacity, horizontal_capacity, minimum_width, minimum_spacing, via_spacing, grid_origin, grid_dimensions, nets, nets_scaled, adjustments, net_name2id, net_id2name = load_input_file(input_file_path='benchmark/test_benchmark_1.gr')
 
     env = RoutingEnv(grid_size=grid_size, vertical_capacity=vertical_capacity, horizontal_capacity=horizontal_capacity, 
                      minimum_width=minimum_width, minimum_spacing=minimum_spacing, via_spacing=via_spacing, 
                      grid_origin=grid_origin, grid_dimensions=grid_dimensions, adjustments=adjustments)
+    
+    agent = DQNAgent(state_size, action_size, buffer_size=10000, batch_size=64, gamma=0.99, lr=0.001, exploration_rate=1.0, exploration_decay=0.995, exploration_min=0.5, env=env)
     
     nets_mst = []
     pinList_allNet = prepareTwoPinList_allNet(nets_scaled)
@@ -128,8 +135,11 @@ if __name__ == '__main__':
 
     done = False  # Flag to indicate if the current episode is finished
 
+    num_total_steps = 0  # Track the number of steps in the current episode
+
     # Loop to solve the routing problem with episodes
     while True:
+        num_total_steps += 1
         # DQN Agent chooses an action
         current_state = env.state
         action = agent.act(current_state)  # Exploration-exploitation strategy
@@ -184,6 +194,8 @@ if __name__ == '__main__':
                             # All nets are completed
                             env.update_env_info(Finish_pair=True, Finish_net=True)
                             print("Finish all nets")
+                            print("Total rewards: ", total_rewards)
+                            print("Total steps: ", num_total_steps)
                             break
                 else:
                     # If failed to finish the last pair

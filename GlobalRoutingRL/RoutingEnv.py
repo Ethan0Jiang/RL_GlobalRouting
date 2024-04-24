@@ -97,7 +97,7 @@ class RoutingEnv(gym.Env):
     def init_new_pair_state(self, pin_pair_index):
         self.fail_count = 0
         if self.pin_pair_index == pin_pair_index:
-            print(" repeat the same pin pair index:", pin_pair_index)
+            print(" repeat the same pin pair index:", pin_pair_index, "for the net index:", self.net_index)
         elif pin_pair_index in self.pin_pair_idxs:
             raise ValueError('The pin pair index is already visited')
         self.pin_pair_idxs.add(pin_pair_index)
@@ -144,6 +144,24 @@ class RoutingEnv(gym.Env):
             return True
         else:
             return False
+        
+    def get_possible_actions(self):
+        # 0: +x, 1: +y, 2: +z, 3: -x, 4: -y, 5: -z
+        # move_mapping = [(1, 0, 0), (0, 1, 0), (0, 0, 1), (-1, 0, 0), (0, -1, 0), (0, 0, -1)]
+        actions = [False, False, False, False, False, False]
+        if self.state[6] > -np.inf and self.current_point+(1,0,0) not in self.pin_pair_visited[self.pin_pair_index]:
+            actions[0] = True
+        if self.state[7] > -np.inf and self.current_point+(0,1,0) not in self.pin_pair_visited[self.pin_pair_index]:
+            actions[1] = True
+        if self.state[8] > -np.inf and self.current_point+(-1,0,0) not in self.pin_pair_visited[self.pin_pair_index]:
+            actions[3] = True
+        if self.state[9] > -np.inf and self.current_point+(0,-1,0) not in self.pin_pair_visited[self.pin_pair_index]:
+            actions[4] = True
+        if self.state[10] > -np.inf or self.state[11] > -np.inf or self.state[12] > -np.inf or self.state[13] > -np.inf and self.current_point+(0,0,1) not in self.pin_pair_visited[self.pin_pair_index]:
+            actions[2] = True
+        if self.state[14] > -np.inf or self.state[15] > -np.inf or self.state[16] > -np.inf or self.state[17] > -np.inf and self.current_point+(0,0,-1) not in self.pin_pair_visited[self.pin_pair_index]:
+            actions[5] = True
+        return actions
         
     def update_state(self):
         state = np.zeros(18)
@@ -245,7 +263,7 @@ class RoutingEnv(gym.Env):
             self.update_state_v2()
 
             if action == 2 or action == 5:
-                reward = -2 # discourage moving in z direction, avoid vias # maybe not needed, since in nature move in z will follow by move in x or y, 2*-1 panenty
+                reward = -1 # discourage moving in z direction, avoid vias # maybe not needed, since in nature move in z will follow by move in x or y, 2*-1 panenty
             
             if new_location in self.nets_visited.get(self.net_index, set()):
                 reward = 0 # non-Penalize for revisiting a location of the privous 2pin pair
@@ -260,12 +278,18 @@ class RoutingEnv(gym.Env):
                 reward = 1000
                 done = True
 
+            if self.get_possible_actions() == [False, False, False, False, False, False]:
+                print("No possible further move")
+                done = True
+                reward = -10 * np.linalg.norm(np.array(self.target_point) - np.array(self.current_point))
+
         else:
             reward = -5
             self.fail_count += 1
             if self.fail_count > 5:
                 done = True
-                reward = -10
+                # the closer to the target, the higher the reward
+                reward = -10 * np.linalg.norm(np.array(self.target_point) - np.array(self.current_point))
                 print("Fail to move to the next location, exceed the fail count")
 
         return self.state, reward, done, {}
@@ -388,9 +412,11 @@ if __name__ == '__main__':
     pin_pair_index = 0
     env.init_new_net_state(net_index, pin_pair_index, net_pin_pairs)
     done = False
-    episodes_per_pair = 10  # Repeat the routing of each 2-pin pair for 10 episodes
+    episodes_per_pair = 3  # Repeat the routing of each 2-pin pair for 10 episodes
     episodes_seccess = 0
+    while_loop_count = 0
     while not done:
+        while_loop_count += 1
         action = env.action_space.sample()
         # print("action: ", action)
         next_state, reward, done, info = env.step(action)
@@ -431,4 +457,4 @@ if __name__ == '__main__':
                         # all nets are finished
                         env.update_env_info(Finish_pair=True, Finish_net=True)
                         break
-    print("Finish all nets")
+    print("Finish all nets ", while_loop_count)

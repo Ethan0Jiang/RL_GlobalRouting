@@ -2,8 +2,6 @@
 __pycache__/
 
 # Ignore specific directories
-benchmark/
-benchmark_reduced/
 capacityPlot_A*/
 capacityPlot_A*_reduced/
 solutionsA*/
