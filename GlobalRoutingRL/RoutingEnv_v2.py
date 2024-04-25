@@ -241,6 +241,7 @@ class RoutingEnv_v2(gym.Env):
         # 0: +x, 1: +y, 2: +z, 3: -x, 4: -y, 5: -z
         move_mapping = [(1, 0, 0), (0, 1, 0), (0, 0, 1), (-1, 0, 0), (0, -1, 0), (0, 0, -1)]
         move = move_mapping[action]
+        cp = self.current_point
         new_location = tuple(map(int, np.array(self.current_point) + np.array(move)))
 
         # Initialize reward and done flag
@@ -249,21 +250,29 @@ class RoutingEnv_v2(gym.Env):
         # # Penalize for moving away from the target
         # if np.dot(np.array(move), np.array(self.target_point) - np.array(self.current_point)) < 0:
         #     reward -= 1
-        print("current_point: ", self.current_point)
-        print("fail_count: ", self.fail_count)
+        # print("current_point: ", self.current_point)
+        # print("fail_count: ", self.fail_count)
 
         # check if the new location is valid
         if self.check_valid_move(action, new_location):
             self.fail_count = 0
             # Update the capacity information
+            changed_cap = 1
             if action == 0:
-                self.capacity_info_h_temp[self.current_point[0], self.current_point[1], self.current_point[2]] -= 1
-            if action == 1:
-                self.capacity_info_v_temp[self.current_point[0], self.current_point[1], self.current_point[2]] -= 1
-            if action == 3:
-                self.capacity_info_h_temp[self.current_point[0]-1, self.current_point[1], self.current_point[2]] -= 1
-            if action == 4:
-                self.capacity_info_v_temp[self.current_point[0], self.current_point[1]-1, self.current_point[2]] -= 1
+                self.capacity_info_h_temp[cp[0], cp[1], cp[2]] -= 1
+                changed_cap = self.capacity_info_h_temp[cp[0], cp[1], cp[2]]
+            elif action == 1:
+                self.capacity_info_v_temp[cp[0], cp[1], cp[2]] -= 1
+                changed_cap = self.capacity_info_v_temp[cp[0], cp[1], cp[2]]
+            elif action == 3:
+                self.capacity_info_h_temp[cp[0]-1, cp[1], cp[2]] -= 1
+                changed_cap = self.capacity_info_h_temp[cp[0]-1, cp[1], cp[2]]
+            elif action == 4:
+                self.capacity_info_v_temp[cp[0], cp[1]-1, cp[2]] -= 1
+                changed_cap = self.capacity_info_v_temp[cp[0], cp[1]-1, cp[2]]
+            # start penaty of changed_cap less than 1
+            if changed_cap < 1:
+                reward -= 5 * (1-changed_cap)
 
             # Update the visited locations for the current pin pair
             self.pin_pair_visited[self.pin_pair_index].add(self.current_point)
@@ -275,10 +284,6 @@ class RoutingEnv_v2(gym.Env):
             
             if new_location in self.nets_visited.get(self.net_index, set()):
                 reward = 0 # non-Penalize for revisiting a location of the privous 2pin pair
-
-            # if overflow the capacity, penalize
-
-            
 
             
             if new_location == self.target_point:

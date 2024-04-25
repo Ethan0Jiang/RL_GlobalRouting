@@ -21,7 +21,7 @@ class MCTSNode:
         self.total_value = 0.0  # Accumulated value (sum of rewards)
         self.action = action # The action that led to this node
         self.env_copy = env_copy  # Store the environment copy
-        self.reward = 0 # the action's reward led to this node
+        self.reward = reward # the action's reward led to this node
         self.done = done
 
     def add_child(self, child):
@@ -101,7 +101,7 @@ class MCTS:
                 self.tree.backpropagate(current_node, reward)
 
         # Retrieve the best sequence of actions
-        return self.get_best_action_sequence(9)  # Return the top N action sequence
+        return self.get_best_action_sequence(10)  # Return the top N action sequence
 
     def simulate(self, node):
         env_copy = copy.deepcopy(node.env_copy)
@@ -141,21 +141,24 @@ class MCTS:
         # Generate the best sequence of actions by traversing the tree from the root
         current_node = self.tree.root
         action_sequence = []
-        finish_2_pin_pair = 0
+        finish_2_pin_pair = False
 
         for _ in range(num_actions):
             if not current_node.done and len(current_node.children) > 0:
-                best_child = self.tree.select_best_subnode(current_node)
+                best_child = self.tree.select_best_child(current_node)
                 action_sequence.append(best_child.action)
-            if current_node.done and current_node.reward > 0:
-                success_2_pin_pair = 1  
-            elif current_node.done and current_node.reward < 0:
-                finish_2_pin_pair = -1
+            # if current_node.done and current_node.reward > 0:
+            #     success_2_pin_pair = 1  
+            # elif current_node.done and current_node.reward < 0:
+            #     finish_2_pin_pair = -1
+            finish_2_pin_pair = current_node.done
             current_node = best_child  # Move to the next best child
+            if finish_2_pin_pair:
+                if current_node.reward <= 0:
+                    action_sequence = action_sequence[0:1]
+                break
 
         return action_sequence, finish_2_pin_pair
-
-
 
 if __name__ == '__main__':
     state_size = 18  # Given state size
@@ -187,7 +190,7 @@ if __name__ == '__main__':
     # Loop to solve the routing problem with episodes
     while True:
         # init a MCTS, MCTS chooses an sequence of actions
-        mcts = MCTS(exploration_constant=0.7, num_simulations=100)
+        mcts = MCTS(exploration_constant=0.7, num_simulations=50)
         action_sequence, finish_2_pin_pair = mcts.perform_mcts(env, env.state)
         node_visited = {} 
 
