@@ -244,7 +244,7 @@ class RoutingEnv_v2(gym.Env):
         new_location = tuple(map(int, np.array(self.current_point) + np.array(move)))
 
         # Initialize reward and done flag
-        reward = -1  # Default reward for each step
+        reward = -10  # Default reward for each step
         done = False
         # # Penalize for moving away from the target
         # if np.dot(np.array(move), np.array(self.target_point) - np.array(self.current_point)) < 0:
@@ -271,7 +271,7 @@ class RoutingEnv_v2(gym.Env):
             self.update_state_v2()
 
             if action == 2 or action == 5:
-                reward = -1 # discourage moving in z direction, avoid vias # maybe not needed, since in nature move in z will follow by move in x or y, 2*-1 panenty
+                reward = -10 # discourage moving in z direction, avoid vias # maybe not needed, since in nature move in z will follow by move in x or y, 2*-1 panenty
             
             if new_location in self.nets_visited.get(self.net_index, set()):
                 reward = 0 # non-Penalize for revisiting a location of the privous 2pin pair
@@ -292,9 +292,9 @@ class RoutingEnv_v2(gym.Env):
                 reward = -10 * np.linalg.norm(np.array(self.target_point) - np.array(self.current_point))
 
         else:
-            reward = -5
+            reward = -30
             self.fail_count += 1
-            if self.fail_count > 5:
+            if self.fail_count > 1:
                 done = True
                 # the closer to the target, the higher the reward
                 reward = -10 * np.linalg.norm(np.array(self.target_point) - np.array(self.current_point))

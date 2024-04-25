@@ -51,14 +51,21 @@ class MCTSTree:
             node.children,
             key=lambda child: child.uct_value(self.exploration_constant),
         )
+    
+    def select_best_subnode(self, node):
+        return max(
+            node.children,
+            key=lambda child: child.total_value,
+        )
 
     def expand(self, node):
-        env_copy = node.env_copy
-        _, possible_actions = env_copy.get_possible_actions()  # Get valid actions
+        original_env = node.env_copy  # Keep the original environment
+        _, possible_actions = original_env.get_possible_actions()  # Get valid actions
+        
         for action in possible_actions:
             if action is not None:
-                env_copy = copy.deepcopy(env_copy)  # Deep copy for a new child
-                next_state, reward, done, _ = env_copy.step(action)  # Simulate
+                env_copy = copy.deepcopy(original_env)  # Create a new deep copy for each iteration
+                next_state, reward, done, _ = env_copy.step(action)  # Simulate the action
                 child_node = MCTSNode(
                     state=next_state, parent=node, action=action, env_copy=env_copy, reward=reward, done=done
                 )
@@ -94,10 +101,10 @@ class MCTS:
                 self.tree.backpropagate(current_node, reward)
 
         # Retrieve the best sequence of actions
-        return self.get_best_action_sequence(10)  # Return the top N action sequence
+        return self.get_best_action_sequence(9)  # Return the top N action sequence
 
     def simulate(self, node):
-        env_copy = node.env_copy
+        env_copy = copy.deepcopy(node.env_copy)
         current_state = node.state
 
         total_reward = 0.0
@@ -137,11 +144,11 @@ class MCTS:
         finish_2_pin_pair = 0
 
         for _ in range(num_actions):
-            if not current_node.done:
-                best_child = self.tree.select_best_child(current_node)
+            if not current_node.done and len(current_node.children) > 0:
+                best_child = self.tree.select_best_subnode(current_node)
                 action_sequence.append(best_child.action)
             if current_node.done and current_node.reward > 0:
-                success_2_pin_pair = 1
+                success_2_pin_pair = 1  
             elif current_node.done and current_node.reward < 0:
                 finish_2_pin_pair = -1
             current_node = best_child  # Move to the next best child
@@ -174,39 +181,19 @@ if __name__ == '__main__':
     # Initialize the environment with the first net and pin pair
     env.init_new_net_state(net_index, pin_pair_index, net_pin_pairs)
 
-    
-    # mcts = MCTS(exploration_constant=1.4, num_simulations=100)
-    # action_sequence, finish_2_pin_pair = mcts.perform_mcts(env, env.state)
-
-    # while True:
-    #     mcts = MCTS(exploration_constant=1.4, num_simulations=100)
-    #     actions_buffer = []
-    #     action_sequence, finish_2_pin_pair = mcts.perform_mcts(env, env.state)
-    #     if finish_2_pin_pair == 0 or finish_2_pin_pair == 1:
-    #         for action in action_sequence:
-    #             env.step(action)
-    #             actions_buffer.append(action)
-    #         if finish_2_pin_pair == 1:
-    #             pin_pair_index += 1
-    #             env.update_env_info(Finish_pair=True)
-
-    # Define episode parameters
-
     done = False  # Flag to indicate if the current episode is finished
     total_rewards = 0  # Accumulated rewards
 
     # Loop to solve the routing problem with episodes
     while True:
         # init a MCTS, MCTS chooses an sequence of actions
-        mcts = MCTS(exploration_constant=1.4, num_simulations=100)
-        actions_buffer = []
+        mcts = MCTS(exploration_constant=0.7, num_simulations=100)
         action_sequence, finish_2_pin_pair = mcts.perform_mcts(env, env.state)
         node_visited = {} 
 
         # Loop to execute the actions in the sequence
         for action in action_sequence:
             new_state, reward, done, _ = env.step(action)  # Step in the environment
-            actions_buffer.append(action)
             total_rewards += reward  # Accumulate rewards   
 
         if done:
