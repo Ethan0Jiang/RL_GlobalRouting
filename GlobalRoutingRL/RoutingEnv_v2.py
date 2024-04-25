@@ -3,9 +3,9 @@ from gym import spaces
 import numpy as np
 import MST as tree
 
-class RoutingEnv(gym.Env):
+class RoutingEnv_v2(gym.Env):
     def __init__(self, grid_size, vertical_capacity, horizontal_capacity, minimum_width, minimum_spacing, via_spacing, grid_origin, grid_dimensions, adjustments):
-        super(RoutingEnv, self).__init__()
+        super(RoutingEnv_v2, self).__init__()
         self.action_space = spaces.Discrete(6)  # For example, move in XYZ directions and their negatives
         self.observation_space = spaces.Box(low=np.array([-np.inf]*18), high=np.array([np.inf]*18), dtype=np.float32)  # 18-dimensional state
         self.grid_size = grid_size
@@ -148,20 +148,28 @@ class RoutingEnv(gym.Env):
     def get_possible_actions(self):
         # 0: +x, 1: +y, 2: +z, 3: -x, 4: -y, 5: -z
         # move_mapping = [(1, 0, 0), (0, 1, 0), (0, 0, 1), (-1, 0, 0), (0, -1, 0), (0, 0, -1)]
-        actions = [False, False, False, False, False, False]
+        actions_TF = [False, False, False, False, False, False]
+        action = []
         if self.state[6] > -np.inf and self.current_point+(1,0,0) not in self.pin_pair_visited[self.pin_pair_index]:
-            actions[0] = True
+            actions_TF[0] = True
+            action.append(0)
         if self.state[7] > -np.inf and self.current_point+(0,1,0) not in self.pin_pair_visited[self.pin_pair_index]:
-            actions[1] = True
+            actions_TF[1] = True
+            action.append(1)
         if self.state[8] > -np.inf and self.current_point+(-1,0,0) not in self.pin_pair_visited[self.pin_pair_index]:
-            actions[3] = True
+            actions_TF[3] = True
+            action.append(3)
         if self.state[9] > -np.inf and self.current_point+(0,-1,0) not in self.pin_pair_visited[self.pin_pair_index]:
-            actions[4] = True
+            actions_TF[4] = True
+            action.append(4)
         if self.state[10] > -np.inf or self.state[11] > -np.inf or self.state[12] > -np.inf or self.state[13] > -np.inf and self.current_point+(0,0,1) not in self.pin_pair_visited[self.pin_pair_index]:
-            actions[2] = True
+            actions_TF[2] = True
+            action.append(2)
         if self.state[14] > -np.inf or self.state[15] > -np.inf or self.state[16] > -np.inf or self.state[17] > -np.inf and self.current_point+(0,0,-1) not in self.pin_pair_visited[self.pin_pair_index]:
-            actions[5] = True
-        return actions
+            actions_TF[5] = True
+            action.append(5)
+        return actions_TF, action
+    
         
     def update_state(self):
         state = np.zeros(18)
@@ -275,7 +283,7 @@ class RoutingEnv(gym.Env):
             
             if new_location == self.target_point:
                 print("Finish a 2-pin pair", self.current_point, self.target_point)
-                reward = 1000
+                reward = 100
                 done = True
 
             if self.get_possible_actions() == [False, False, False, False, False, False]:
@@ -398,7 +406,7 @@ if __name__ == '__main__':
 
     grid_size, vertical_capacity, horizontal_capacity, minimum_width, minimum_spacing, via_spacing, grid_origin, grid_dimensions, nets, nets_scaled, adjustments, net_name2id, net_id2name = load_input_file(input_file_path='benchmark_reduced/test_benchmark_1.gr')
 
-    env = RoutingEnv(grid_size=grid_size, vertical_capacity=vertical_capacity, horizontal_capacity=horizontal_capacity, 
+    env = RoutingEnv_v2(grid_size=grid_size, vertical_capacity=vertical_capacity, horizontal_capacity=horizontal_capacity, 
                      minimum_width=minimum_width, minimum_spacing=minimum_spacing, via_spacing=via_spacing, 
                      grid_origin=grid_origin, grid_dimensions=grid_dimensions, adjustments=adjustments)
     

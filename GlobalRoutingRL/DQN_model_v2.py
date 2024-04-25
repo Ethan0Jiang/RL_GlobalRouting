@@ -107,7 +107,7 @@ if __name__ == '__main__':
     # state_size = 6  # Given state size
     action_size = 6  # 4 directions and 2 layer transitions
 
-    grid_size, vertical_capacity, horizontal_capacity, minimum_width, minimum_spacing, via_spacing, grid_origin, grid_dimensions, nets, nets_scaled, adjustments, net_name2id, net_id2name = load_input_file(input_file_path='benchmark/test_benchmark_1.gr')
+    grid_size, vertical_capacity, horizontal_capacity, minimum_width, minimum_spacing, via_spacing, grid_origin, grid_dimensions, nets, nets_scaled, adjustments, net_name2id, net_id2name = load_input_file(input_file_path='benchmark_reduced/test_benchmark_1.gr')
 
     env = RoutingEnv(grid_size=grid_size, vertical_capacity=vertical_capacity, horizontal_capacity=horizontal_capacity, 
                      minimum_width=minimum_width, minimum_spacing=minimum_spacing, via_spacing=via_spacing, 
