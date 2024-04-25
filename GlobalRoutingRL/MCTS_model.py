@@ -155,11 +155,10 @@ class MCTS:
             current_node = best_child  # Move to the next best child
             if finish_2_pin_pair:
                 if current_node.reward <= 0:
-                    action_sequence = action_sequence[0:1]
+                    action_sequence = action_sequence[0:1] if len(action_sequence) > 1 else [0]
                 break
 
         return action_sequence, finish_2_pin_pair
-
 if __name__ == '__main__':
     state_size = 18  # Given state size
     # state_size = 6  # Given state size
@@ -224,6 +223,7 @@ if __name__ == '__main__':
                         env.update_env_info(Finish_pair=True, Finish_net=True)
                         print("Finish all nets")
                         print("Total rewards: ", total_rewards)
+                        print(env.nets_visited)
                         break
                 else:
                     # If failed to finish the last pair
