@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import torch.nn.init as init
 import random
 import math
 from collections import namedtuple
@@ -15,14 +16,36 @@ Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'
 class DQN(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(DQN, self).__init__()
-        self.fc1 = nn.Linear(input_dim, 128)
-        self.fc2 = nn.Linear(128, 64)
-        self.fc3 = nn.Linear(64, output_dim)
+        
+        self.layers = nn.Sequential(
+            nn.Linear(input_dim, 128),
+            # nn.BatchNorm1d(128, track_running_stats=False),
+            # nn.Dropout(p=0.2),
+            nn.ReLU(),
+            nn.Linear(128, 64),
+            # nn.Dropout(p=0.3),
+            nn.ReLU(),
+            nn.Linear(64, 32),
+            # nn.Dropout(p=0.5),
+            nn.ReLU(),
+            nn.Linear(32, output_dim)
+        )
+
+        self._initialize_weights()
 
     def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        return self.fc3(x)
+        
+        x = self.layers(x)
+        
+        return x
+        
+    
+    def _initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    init.constant_(m.bias, 0)
 
 class ReplayMemory:
     def __init__(self, capacity):
@@ -44,41 +67,84 @@ class ReplayMemory:
     
 class Parameter:
     def __init__(self):
-        self.BATCH_SIZE = 32
+        self.BATCH_SIZE = 3
         self.GAMMA = 0.99
         self.EPS_START = 0.9
         self.EPS_END = 0.05
         self.EPS_DECAY = 200
-        self.LEARNING_RATE = 0.001
+        self.LEARNING_RATE = 0.00001
         self.TARGET_UPDATE = 3
-        self.NUM_EPISODES = 10
+        self.NUM_EPISODES = 50
         self.MAX_STEP = 30
 
 class DQN_Agent:
     def __init__(self, env, capacity=100):
         self.para = Parameter()
         self.env = env
-        self.input_dim = env.observation_space.shape[0]
+        self.input_dim = 18 #env.observation_space.shape[0]
         self.output_dim = 6 #env.action_space.shape
         self.policy_net = DQN(self.input_dim, self.output_dim)
         self.target_net = DQN(self.input_dim, self.output_dim)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
         self.optimizer = optim.Adam(self.policy_net.parameters(), lr=self.para.LEARNING_RATE)
+        self.clip_value = 1.0 
         self.memory = ReplayMemory(capacity)
         self.steps_done = 0
+        self.total_step_done = 0
+        self.mask = [1] * self.output_dim # 0: +x, 1: +y, 2: +z, 3: -x, 4: -y, 5: -z
 
-    def select_action(self, state, output_dim, steps_done):
+    def select_action(self, state):
         # state = torch.tensor(state, dtype=torch.float32)
         sample = random.random()
         eps_threshold = self.para.EPS_END + (self.para.EPS_START - self.para.EPS_END) * \
             math.exp(-1. * self.steps_done / self.para.EPS_DECAY)
-        self.steps_done += 1
+        # self.steps_done += 1
+
         if sample > eps_threshold:
             with torch.no_grad():
                 return self.policy_net(state).max(1)[1].view(1, 1)
         else:
-            return torch.tensor([[random.randrange(output_dim)]], dtype=torch.long)
+            return torch.tensor([[random.randrange(self.output_dim)]], dtype=torch.long)
+        
+    def update_mask(self):
+        # 0: +x, 1: +y, 2: +z, 3: -x, 4: -y, 5: -z
+        move_mapping = [(1, 0, 0), (0, 1, 0), (0, 0, 1), (-1, 0, 0), (0, -1, 0), (0, 0, -1)]
+        for i in range (self.output_dim):
+            move = move_mapping[i]
+            new_location = tuple(map(int, np.array(env.current_point) + np.array(move)))
+            if not env.check_valid_move(i, new_location):
+                self.mask[i] = -np.inf
+            else:
+                self.mask[i] = 1
+    
+    def select_action_with_mask(self, state, exploit=False):
+        # state = torch.tensor(state, dtype=torch.float32)
+        self.update_mask()
+        sample = random.random()
+        # eps_threshold = self.para.EPS_END + (self.para.EPS_START - self.para.EPS_END) * \
+        #     math.exp(-1. * self.steps_done / self.para.EPS_DECAY)
+        eps_threshold = 0.1
+        # self.steps_done += 1
+        if exploit:
+            eps_threshold = 0
+
+        mask = np.isneginf(state)
+        state[mask] = -10
+        # assert (state >=-50).all()
+        
+        # print("q_values: ",self.policy_net(state))
+        if sample > eps_threshold:
+            with torch.no_grad():
+                q_values = torch.tensor(np.multiply(np.array(self.policy_net(state)), np.array(self.mask)))
+                # q_values = q_values.unsqueeze(0)
+                return q_values.max(1)[1].view(1, 1)
+        else:
+            actions = [i for i in range (self.output_dim) if self.mask[i] != -np.inf]
+            if len(actions) == 0:
+                print("No valid action!!!")
+                return torch.tensor([[random.randrange(self.output_dim)]], dtype=torch.long)
+            return torch.tensor([[random.choice(actions)]], dtype=torch.long)
 
     def optimize_model(self):
         if len(self.memory) < self.para.BATCH_SIZE:
@@ -97,32 +163,36 @@ class DQN_Agent:
         state_action_values = self.policy_net(state_batch).gather(1, action_batch)
 
         next_state_values = torch.zeros(self.para.BATCH_SIZE)
+        mask = np.isneginf(non_final_next_states)
+        non_final_next_states[mask] = -10
         next_state_values[non_final_mask] = self.target_net(non_final_next_states).max(1)[0].detach()
 
         expected_state_action_values = (next_state_values * self.para.GAMMA) + reward_batch
 
-        loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
-
+        loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1), reduction='mean', beta=1.0)
+        
         self.optimizer.zero_grad()
         loss.backward()
-        for param in self.policy_net.parameters():
-            param.grad.data.clamp_(-1, 1)
+        # for param in self.policy_net.parameters():
+        #     param.grad.data.clamp_(-1, 1)
+        
+        torch.nn.utils.clip_grad_norm_(self.policy_net.parameters(), self.clip_value)
         self.optimizer.step()
 
 
     def train(self): 
         print("///// Start Training /////////")
-        # env.init_new_net_state(net_index, pin_pair_index, net_pin_pairs)
-        # env.init_new_pair_state(pin_pair_index)
 
         for i_episode in range(self.para.NUM_EPISODES):
             
             i_reward_accum = 0  
             state = torch.tensor([self.env.state], dtype=torch.float32)
+            # print("state: ", state)
 
             for t in range(self.para.MAX_STEP):
+                # print("total_step_done: ",self.total_step_done)
               
-                action = self.select_action(state, self.output_dim, t) 
+                action = self.select_action_with_mask(state) 
                 next_state, reward, done, info = env.step(action.item())
                 i_reward_accum += reward
                 reward = torch.tensor([reward], dtype=torch.float32)
@@ -133,6 +203,8 @@ class DQN_Agent:
 
                 next_state = torch.tensor([next_state], dtype=torch.float32)
                 state = next_state
+
+                self.total_step_done += 1
 
                 if done:
                     if reward > 0:
@@ -163,7 +235,8 @@ class DQN_Agent:
             episode_reward = 0
 
             for t in range(self.para.MAX_STEP):
-                action = self.select_action(state, self.output_dim, t)
+                self.steps_done = t
+                action = self.select_action_with_mask(state)
                 next_state, reward, done, _ = self.env.step(action.item())
                 episode_reward += reward
 
@@ -174,7 +247,7 @@ class DQN_Agent:
                     else:
                         env.init_new_pair_state(pin_pair_index)
                         done = False
-                        
+
             state = torch.tensor([next_state], dtype=torch.float32) if not done else None
             total_reward += episode_reward
             print(f'Episode {i_episode + 1}: Total Reward = {episode_reward}')
@@ -204,6 +277,7 @@ if __name__ == '__main__':
     # Start routing process
     failed_pin_pairs = [] # [net_index, pin_pair_index]
     for net_index in range (len(nets_mst)):
+        
         net_pin_pairs = nets_mst[net_index]
         for pin_pair_index in range (len(net_pin_pairs)):
             if pin_pair_index == 0:
@@ -215,12 +289,12 @@ if __name__ == '__main__':
             env.init_new_pair_state(pin_pair_index)
             env.update_env_info(Finish_pair=True, Finish_net=(pin_pair_index==len(net_pin_pairs)-1))
 
-    # env.update_env_info(Finish_pair=True, Finish_net=True)
 
     print("failed_pin_pairs: ", failed_pin_pairs)
+    print("total_step_done: ", agent.total_step_done)
     print("Finish all nets")
 
-    agent.test()
+    # agent.test()
 
 
 
