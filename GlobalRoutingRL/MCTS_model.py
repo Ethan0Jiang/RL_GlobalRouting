@@ -256,8 +256,21 @@ def solve_routing_problem(input_file_path):
                     env.init_new_pair_state(pin_pair_index)
                     done = False
 
-    total_congestion, min_capacity, total_wire_length = evaluation(env)
     
+
+    total_wirelength = 0
+    for net_index in range (len(nets_mst)):
+        print("net_index: ", net_index, env.nets_visited[net_index])
+        total_wirelength += len(env.nets_visited[net_index]) - 1
+    print("total wirelength: ", total_wirelength)
+
+    mask_h = (env.capacity_info_h < 0) & (env.capacity_info_h > -10)
+    mask_v = (env.capacity_info_v < 0) & (env.capacity_info_v > -10)
+    overflow = np.sum(env.capacity_info_h[mask_h]) + np.sum(env.capacity_info_v[mask_v])
+    print("overflow: ", overflow)
+
+    total_congestion, min_capacity, total_wire_length = evaluation(env)
+
     # Return the total rewards or other relevant data if needed
     return total_congestion, min_capacity, total_wire_length
 
