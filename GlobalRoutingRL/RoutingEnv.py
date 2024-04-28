@@ -248,13 +248,15 @@ class RoutingEnv(gym.Env):
         if self.check_valid_move(action, new_location):
             self.fail_count = 0
             # Update the capacity information
-            if action == 0:
+            if new_location in self.nets_visited.get(self.net_index, set()):
+                reward = 0 # non-Penalize for revisiting a location of the privous 2pin pair
+            elif action == 0:
                 self.capacity_info_h_temp[self.current_point[0], self.current_point[1], self.current_point[2]] -= 1
-            if action == 1:
+            elif action == 1:
                 self.capacity_info_v_temp[self.current_point[0], self.current_point[1], self.current_point[2]] -= 1
-            if action == 3:
+            elif action == 3:
                 self.capacity_info_h_temp[self.current_point[0]-1, self.current_point[1], self.current_point[2]] -= 1
-            if action == 4:
+            elif action == 4:
                 self.capacity_info_v_temp[self.current_point[0], self.current_point[1]-1, self.current_point[2]] -= 1
 
             # Update the visited locations for the current pin pair
@@ -265,20 +267,11 @@ class RoutingEnv(gym.Env):
             if action == 2 or action == 5:
                 reward = -1 # discourage moving in z direction, avoid vias # maybe not needed, since in nature move in z will follow by move in x or y, 2*-1 panenty
             
-            if new_location in self.nets_visited.get(self.net_index, set()):
-                reward = 0 # non-Penalize for revisiting a location of the privous 2pin pair
-
-            # if overflow the capacity, penalize
-
-            
-
-            
             if new_location == self.target_point:
                 print("Finish a 2-pin pair", self.current_point, self.target_point)
                 reward = 1000
                 done = True
-
-            if self.get_possible_actions() == [False, False, False, False, False, False]:
+            elif self.get_possible_actions() == [False, False, False, False, False, False]:
                 print("No possible further move")
                 done = True
                 reward = -10 * np.linalg.norm(np.array(self.target_point) - np.array(self.current_point))
