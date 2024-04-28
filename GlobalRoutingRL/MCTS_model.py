@@ -9,7 +9,8 @@ import numpy as np
 import gym
 from gym import spaces
 import MST as tree
-from RoutingEnv_v2 import RoutingEnv_v2, load_input_file, prepareTwoPinList_allNet
+from RoutingEnv_v2 import RoutingEnv_v2, load_input_file, prepareTwoPinList_allNet, evaluation
+
 
 
 class MCTSNode:
@@ -159,17 +160,30 @@ class MCTS:
                 break
 
         return action_sequence, finish_2_pin_pair
-if __name__ == '__main__':
+    
+
+
+def run_routing_problem(input_file_path):
     state_size = 18  # Given state size
-    # state_size = 6  # Given state size
     action_size = 6  # 4 directions and 2 layer transitions
 
-    grid_size, vertical_capacity, horizontal_capacity, minimum_width, minimum_spacing, via_spacing, grid_origin, grid_dimensions, nets, nets_scaled, adjustments, net_name2id, net_id2name = load_input_file(input_file_path='benchmark_reduced/test_benchmark_1.gr')
+    # Load environment variables
+    grid_size, vertical_capacity, horizontal_capacity, minimum_width, minimum_spacing, via_spacing, grid_origin, grid_dimensions, nets, nets_scaled, adjustments, net_name2id, net_id2name = load_input_file(input_file_path)
 
-    env = RoutingEnv_v2(grid_size=grid_size, vertical_capacity=vertical_capacity, horizontal_capacity=horizontal_capacity, 
-                     minimum_width=minimum_width, minimum_spacing=minimum_spacing, via_spacing=via_spacing, 
-                     grid_origin=grid_origin, grid_dimensions=grid_dimensions, adjustments=adjustments)
+    # Create environment and prepare the MST for each net
+    env = RoutingEnv_v2(
+        grid_size=grid_size,
+        vertical_capacity=vertical_capacity,
+        horizontal_capacity=horizontal_capacity,
+        minimum_width=minimum_width,
+        minimum_spacing=minimum_spacing,
+        via_spacing=via_spacing,
+        grid_origin=grid_origin,
+        grid_dimensions=grid_dimensions,
+        adjustments=adjustments,
+    )
     
+    # Generate MST for each net
     nets_mst = []
     pinList_allNet = prepareTwoPinList_allNet(nets_scaled)
     for net_id, pin_pairs in pinList_allNet.items():
@@ -186,46 +200,48 @@ if __name__ == '__main__':
     done = False  # Flag to indicate if the current episode is finished
     total_rewards = 0  # Accumulated rewards
 
-    # Loop to solve the routing problem with episodes
     while True:
-        # init a MCTS, MCTS chooses an sequence of actions
         mcts = MCTS(exploration_constant=0.7, num_simulations=50)
         action_sequence, finish_2_pin_pair = mcts.perform_mcts(env, env.state)
-        node_visited = {} 
 
-        # Loop to execute the actions in the sequence
         for action in action_sequence:
-            new_state, reward, done, _ = env.step(action)  # Step in the environment
-            total_rewards += reward  # Accumulate rewards   
+            new_state, reward, done, _ = env.step(action)
+            total_rewards += reward
 
         if done:
-            # Handling end of a 2-pin pair
             if pin_pair_index < len(net_pin_pairs) - 1:
                 if reward > 0:
-                    pin_pair_index += 1  # Move to the next pair
-                    env.update_env_info(Finish_pair=True)  # Update env info
-                env.init_new_pair_state(pin_pair_index)
-                done = False
+                    pin_pair_index += 1
+                    env.update_env_info(Finish_pair=True)
+                    env.init_new_pair_state(pin_pair_index)
+                    done = False
             elif pin_pair_index == len(net_pin_pairs) - 1:
-                # Handling the last pair in the net
                 if reward > 0:
-                    # If all episodes for this pair are completed
-                    net_index += 1  # Move to the next net
+                    net_index += 1
                     if net_index < len(nets_mst):
-                        # If there are more nets to solve
-                        net_pin_pairs = nets_mst[net_index]  # Get the new net
-                        pin_pair_index = 0  # Reset to the first pair
+                        net_pin_pairs = nets_mst[net_index]
+                        pin_pair_index = 0
                         env.update_env_info(Finish_pair=True, Finish_net=True)
                         env.init_new_net_state(net_index, pin_pair_index, net_pin_pairs)
                         done = False
                     else:
-                        # All nets are completed
                         env.update_env_info(Finish_pair=True, Finish_net=True)
-                        print("Finish all nets")
-                        print("Total rewards: ", total_rewards)
-                        print(env.nets_visited)
                         break
                 else:
-                    # If failed to finish the last pair
                     env.init_new_pair_state(pin_pair_index)
                     done = False
+
+    # Evaluate the solution
+    total_congestion, min_capacity, total_wire_length = evaluation(env)
+
+    return total_congestion, min_capacity, total_wire_length
+
+
+# Example usage with a command-line argument
+if __name__ == '__main__':
+    input_file_path = 'benchmark/test_benchmark_1.gr'
+    total_congestion, min_capacity, total_wire_length = run_routing_problem(input_file_path)
+
+    print("Total congestion:", total_congestion)
+    print("Minimum capacity:", min_capacity)
+    print("Total wire length:", total_wire_length)

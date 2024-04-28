@@ -319,6 +319,14 @@ def evaluation(env):
     capacity_info_v = capacity_info_v.flatten()
     capacity_info = np.concatenate((capacity_info_h, capacity_info_v)).flatten()
     capacity_info = capacity_info[capacity_info != -np.inf]
+
+    min_capacity = np.min(capacity_info)
+    # total congestion is the sum of negtive values in capacity_info
+    total_congestion = np.sum(capacity_info[capacity_info < 0])
+    for i in env.nets_visited:
+        total_wire_length += len(env.nets_visited[i])
+    
+    return total_congestion, min_capacity, total_wire_length
     
 
 
