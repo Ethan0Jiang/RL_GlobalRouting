@@ -176,7 +176,7 @@ class MCTS:
     
 
 
-def solve_routing_problem(input_file_path):
+def solve_routing_with_mcts(input_file_path):
     # Initialization
     state_size = 18  # Given state size
     action_size = 6  # 4 directions and 2 layer transitions
@@ -278,7 +278,7 @@ def solve_routing_problem(input_file_path):
 # Main block that calls the function
 if __name__ == '__main__':
     file_path = 'benchmark/test_benchmark_6.gr'
-    total_congestion, min_capacity, total_wire_length = solve_routing_problem(file_path)  # Call the function with the provided file path
+    total_congestion, min_capacity, total_wire_length = solve_routing_with_mcts(file_path)  # Call the function with the provided file path
     print("Total congestion:", total_congestion)
     print("Minimum capacity:", min_capacity)
     print("Total wire length:", total_wire_length)

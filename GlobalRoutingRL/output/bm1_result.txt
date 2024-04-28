@@ -1,0 +1,11 @@
+Benchmark:  benchmark/test_benchmark_1.gr
+
+DQN-based router
+Total congestion: 0.0
+Minimum capacity: 3.0
+Total wire length: 41
+
+MCTS-based router
+Total congestion: 0.0
+Minimum capacity: 3.0
+Total wire length: 20

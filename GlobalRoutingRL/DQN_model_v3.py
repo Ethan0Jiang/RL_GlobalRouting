@@ -10,7 +10,7 @@ import numpy as np
 import MST as tree
 from collections import deque
 from RoutingEnv_v2 import RoutingEnv_v2 as RoutingEnv
-from RoutingEnv_v2 import load_input_file, prepareTwoPinList_allNet
+from RoutingEnv_v2 import load_input_file, prepareTwoPinList_allNet, evaluation
 
 # Neural network model for Q-value approximation
 class DQN(nn.Module):
@@ -239,19 +239,23 @@ def solve_routing_with_dqn(input_file_path):
     mask_h = (env.capacity_info_h < 0) & (env.capacity_info_h > -10)
     mask_v = (env.capacity_info_v < 0) & (env.capacity_info_v > -10)
     overflow = np.sum(env.capacity_info_h[mask_h]) + np.sum(env.capacity_info_v[mask_v])
+
+    total_congestion, min_capacity, total_wire_length = evaluation(env)
+
+
     
     # Return the calculated results and total rewards
-    return total_rewards, total_wirelength, overflow
+    return total_congestion, min_capacity, total_wire_length
 
 
 # Main block that calls the function
 if __name__ == '__main__':
     file_path = 'benchmark/test_benchmark_1.gr'
-    total_rewards, total_wirelength, overflow = solve_routing_with_dqn(file_path)
+    ttotal_congestion, min_capacity, total_wire_length = solve_routing_with_dqn(file_path)
+    print("Total Congestion:", ttotal_congestion)
+    print("Min Capacity:", min_capacity)
+    print("Total Wire Length:", total_wire_length)
     
-    print("Total rewards:", total_rewards)
-    print("Total wirelength:", total_wirelength)
-    print("Overflow:", overflow)
 
 
 

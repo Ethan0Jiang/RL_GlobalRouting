@@ -14,7 +14,7 @@ def run_router(input_file_path, output_file_path):
 
     print("/////// Running DQN-based router ///////")
     f.write("\nDQN-based router\n")
-    total_congestion, min_capacity, total_wire_length = DQN_model_v3.run(input_file_path)
+    total_congestion, min_capacity, total_wire_length = DQN_model_v3.solve_routing_with_dqn(input_file_path)
     print("Total congestion:", total_congestion)
     print("Minimum capacity:", min_capacity)
     print("Total wire length:", total_wire_length)
@@ -24,7 +24,7 @@ def run_router(input_file_path, output_file_path):
 
     print("/////// Running MCTS-based router ///////")
     f.write("\nMCTS-based router\n")
-    total_congestion, min_capacity, total_wire_length = MCTS_model.run_routing_problem(input_file_path)
+    total_congestion, min_capacity, total_wire_length = MCTS_model.solve_routing_with_mcts(input_file_path)
     print("Total congestion:", total_congestion)
     print("Minimum capacity:", min_capacity)
     print("Total wire length:", total_wire_length)
