@@ -165,7 +165,7 @@ def solve_routing_with_dqn(input_file_path):
 
     # Define episode parameters
     episodes_per_pair = 1  # Number of episodes per 2-pin pair
-    episodes_success = 0  # Track successful episodes
+    episodes_success = 5  # Track successful episodes
     total_rewards = 0  # Track total rewards for the routing process
 
     done = False  # Flag to indicate if the current episode is finished

@@ -1,6 +1,6 @@
 grid 8 8 2
-vertical capacity 0 5
-horizontal capacity 5 0
+vertical capacity 0 3
+horizontal capacity 3 0
 minimum width 1 1
 minimum spacing 0 0
 via spacing 0 0
@@ -17,10 +17,12 @@ A3 02 3 2
 77  79 2
 69  57 2
 76  36 2
-A4 02 3 2
-1  9 2
-24  36 2
-34  21 2
+A4 04 5 1
+8  5 1
+52  24 2
+3  54 1
+30  79 2
+29  51 2
 A5 02 2 1
 48  49 1
 14  6 1
