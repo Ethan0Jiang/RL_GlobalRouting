@@ -9,8 +9,8 @@ from gym import spaces
 import numpy as np
 import MST as tree
 from collections import deque
-from RoutingEnv import RoutingEnv
-from RoutingEnv import load_input_file, prepareTwoPinList_allNet
+from RoutingEnv_v2 import RoutingEnv_v2 as RoutingEnv
+from RoutingEnv_v2 import load_input_file, prepareTwoPinList_allNet
 
 # Neural network model for Q-value approximation
 class DQN(nn.Module):
@@ -62,7 +62,7 @@ class DQNAgent:
         self.env = env
 
     def act(self, state):
-        possible_actions = self.env.get_possible_actions() # Get possible actions from the environment in a list of True/False
+        possible_actions,action_list= self.env.get_possible_actions() # Get possible actions from the environment in a list of True/False
 
         if np.random.rand() <= self.exploration_rate:
             # return a possible random action in possible_actions where value is True
@@ -113,38 +113,54 @@ class DQNAgent:
 
 
 
-if __name__ == '__main__':
-    # Initialize DQN agent with appropriate parameters
+import numpy as np  # For array operations
+# Import other necessary libraries or modules
+# import ...
+
+def solve_routing_with_dqn(input_file_path):
     state_size = 18  # Given state size
-    # state_size = 6  # Given state size
     action_size = 6  # 4 directions and 2 layer transitions
 
-    grid_size, vertical_capacity, horizontal_capacity, minimum_width, minimum_spacing, via_spacing, grid_origin, grid_dimensions, nets, nets_scaled, adjustments, net_name2id, net_id2name = load_input_file(input_file_path='benchmark/test_benchmark_1.gr')
+    # Load the input file to initialize environment variables
+    grid_size, vertical_capacity, horizontal_capacity, minimum_width, minimum_spacing, via_spacing, grid_origin, grid_dimensions, nets, nets_scaled, adjustments, net_name2id, net_id2name = load_input_file(input_file_path)
 
-    env = RoutingEnv(grid_size=grid_size, vertical_capacity=vertical_capacity, horizontal_capacity=horizontal_capacity, 
-                     minimum_width=minimum_width, minimum_spacing=minimum_spacing, via_spacing=via_spacing, 
-                     grid_origin=grid_origin, grid_dimensions=grid_dimensions, adjustments=adjustments)
+    env = RoutingEnv(
+        grid_size=grid_size,
+        vertical_capacity=vertical_capacity,
+        horizontal_capacity=horizontal_capacity,
+        minimum_width=minimum_width,
+        minimum_spacing=minimum_spacing,
+        via_spacing=via_spacing,
+        grid_origin=grid_origin,
+        grid_dimensions=grid_dimensions,
+        adjustments=adjustments,
+    )
     
-    agent = DQNAgent(state_size, action_size, buffer_size=10000, batch_size=64, gamma=0.99, lr=0.001, exploration_rate=1.0, exploration_decay=0.995, exploration_min=0.5, env=env)
+    # Initialize the DQN agent
+    agent = DQNAgent(
+        state_size,
+        action_size,
+        buffer_size=10000,
+        batch_size=64,
+        gamma=0.99,
+        lr=0.001,
+        exploration_rate=1.0,
+        exploration_decay=0.995,
+        exploration_min=0.5,
+        env=env,
+    )
     
+    # Prepare data structures for routing
     nets_mst = []
     pinList_allNet = prepareTwoPinList_allNet(nets_scaled)
     for net_id, pin_pairs in pinList_allNet.items():
         nets_mst.append(tree.generateMST(pin_pairs))
-    print("nets_mst: ", nets_mst)
-    # for net_index in range (len(nets_mst)):
-    #     net_pin_pairs = nets_mst[net_index]
-    #     for pin_pair_index in range (len(net_pin_pairs)):
-    #         print("net_index: ", net_index, "pin_pair_index: ", pin_pair_index)
-    # import sys
-    # sys.exit(0)
-
+    
     # Initialize the first net and pin pair
     net_index = 0
     net_pin_pairs = nets_mst[net_index]
     pin_pair_index = 0
 
-    # Initialize the environment with the first net and pin pair
     env.init_new_net_state(net_index, pin_pair_index, net_pin_pairs)
 
     # Define episode parameters
@@ -153,24 +169,22 @@ if __name__ == '__main__':
     total_rewards = 0  # Track total rewards for the routing process
 
     done = False  # Flag to indicate if the current episode is finished
-
     num_total_steps = 0  # Track the number of steps in the current episode
 
     # Loop to solve the routing problem with episodes
     while True:
         num_total_steps += 1
-        # if num_total_steps > 100:
-        #     break
-        # DQN Agent chooses an action
+        
+        # DQN agent chooses an action
         current_state = env.state
         action = agent.act(current_state)  # Exploration-exploitation strategy
         next_state, reward, done, info = env.step(action)  # Step in the environment
-
-        # Store the transition in the replay buffer
+        
+        # Store the transition in the replay buffer and replay for training
         agent.buffer.add(current_state, action, reward, next_state, done)
         agent.replay()  # Experience replay for training
         agent.update_exploration_rate()  # Decay exploration rate
-
+        
         total_rewards += reward  # Accumulate rewards for this episode
 
         if done:
@@ -180,34 +194,29 @@ if __name__ == '__main__':
                     if episodes_success < episodes_per_pair:
                         episodes_success += 1  # Increment successful episodes count
                         env.init_new_pair_state(pin_pair_index)  # Reset for the same pair
-                        print("Success: ", episodes_success)
                     else:
-                        # If all episodes for this pair are completed
                         pin_pair_index += 1  # Move to the next pair
                         env.update_env_info(Finish_pair=True)  # Update env info
                         env.init_new_pair_state(pin_pair_index)  # Initialize next pair
                         episodes_success = 0  # Reset success count
                     done = False
                 else:
-                    # If the routing failed, retry the same pair
                     env.init_new_pair_state(pin_pair_index)
                     done = False
             elif pin_pair_index == len(net_pin_pairs) - 1:
-                # Handling the last pair in the net
                 if reward > 0:
                     if episodes_success < episodes_per_pair:
-                        episodes_success += 1
-                        env.init_new_pair_state(pin_pair_index)  # Reset for this pair
+                        episodes_success += 1  # Continue with the same pair
+                        env.init_new_pair_state(pin_pair_index)
                         done = False
-                        print("Success: ", episodes_success)
                     else:
-                        # If all episodes for this pair are completed
-                        net_index += 1  # Move to the next net
-                        episodes_success = 0  # Reset success count
+                        # If all episodes for this pair are completed, move to the next net
+                        net_index += 1
+                        episodes_success = 0
                         if net_index < len(nets_mst):
                             # If there are more nets to solve
-                            net_pin_pairs = nets_mst[net_index]  # Get the new net
-                            pin_pair_index = 0  # Reset to the first pair
+                            net_pin_pairs = nets_mst[net_index]
+                            pin_pair_index = 0
                             env.update_env_info(Finish_pair=True, Finish_net=True)
                             env.init_new_net_state(net_index, pin_pair_index, net_pin_pairs)
                             done = False
@@ -215,23 +224,34 @@ if __name__ == '__main__':
                             # All nets are completed
                             env.update_env_info(Finish_pair=True, Finish_net=True)
                             print("Finish all nets")
-                            print("Total rewards: ", total_rewards)
-                            print("Total steps: ", num_total_steps)
+                            print("Total rewards:", total_rewards)
+                            print("Total steps:", num_total_steps)
                             break
                 else:
-                    # If failed to finish the last pair
                     env.init_new_pair_state(pin_pair_index)
                     done = False
 
+    # Calculate total wirelength and overflow
     total_wirelength = 0
-    for net_index in range (len(nets_mst)):
-        print("net_index: ", net_index, env.nets_visited[net_index])
+    for net_index in range(len(nets_mst)):
         total_wirelength += len(env.nets_visited[net_index]) - 1
-    print("total wirelength: ", total_wirelength)
 
     mask_h = (env.capacity_info_h < 0) & (env.capacity_info_h > -10)
     mask_v = (env.capacity_info_v < 0) & (env.capacity_info_v > -10)
     overflow = np.sum(env.capacity_info_h[mask_h]) + np.sum(env.capacity_info_v[mask_v])
-    print("overflow: ", overflow)
+    
+    # Return the calculated results and total rewards
+    return total_rewards, total_wirelength, overflow
+
+
+# Main block that calls the function
+if __name__ == '__main__':
+    file_path = 'benchmark/test_benchmark_1.gr'
+    total_rewards, total_wirelength, overflow = solve_routing_with_dqn(file_path)
+    
+    print("Total rewards:", total_rewards)
+    print("Total wirelength:", total_wirelength)
+    print("Overflow:", overflow)
+
 
 

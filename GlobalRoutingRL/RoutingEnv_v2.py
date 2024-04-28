@@ -286,11 +286,12 @@ class RoutingEnv_v2(gym.Env):
             if action == 2 or action == 5:
                 reward = -10 # discourage moving in z direction, avoid vias # maybe not needed, since in nature move in z will follow by move in x or y, 2*-1 panenty
             
+            action_TF, action_list = self.get_possible_actions() # get the possible actions
             if new_location == self.target_point:
                 print("Finish a 2-pin pair", self.current_point, self.target_point)
                 reward = 100
                 done = True
-            elif self.get_possible_actions() == [False, False, False, False, False, False]:
+            elif action_list == []:
                 print("No possible further move")
                 done = True
                 reward = -10 * np.linalg.norm(np.array(self.target_point) - np.array(self.current_point))
