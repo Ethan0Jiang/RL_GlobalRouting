@@ -258,7 +258,9 @@ class RoutingEnv_v2(gym.Env):
             self.fail_count = 0
             # Update the capacity information
             changed_cap = 1
-            if action == 0:
+            if new_location in self.nets_visited.get(self.net_index, set()): # not reduce the capacity if the new location is visited by the privous 2-pin pair
+                reward = 0
+            elif action == 0:
                 self.capacity_info_h_temp[cp[0], cp[1], cp[2]] -= 1
                 changed_cap = self.capacity_info_h_temp[cp[0], cp[1], cp[2]]
             elif action == 1:
@@ -270,6 +272,8 @@ class RoutingEnv_v2(gym.Env):
             elif action == 4:
                 self.capacity_info_v_temp[cp[0], cp[1]-1, cp[2]] -= 1
                 changed_cap = self.capacity_info_v_temp[cp[0], cp[1]-1, cp[2]]
+
+
             # start penaty of changed_cap less than 1
             if changed_cap < 1:
                 reward -= 5 * (1-changed_cap)
@@ -282,16 +286,11 @@ class RoutingEnv_v2(gym.Env):
             if action == 2 or action == 5:
                 reward = -10 # discourage moving in z direction, avoid vias # maybe not needed, since in nature move in z will follow by move in x or y, 2*-1 panenty
             
-            if new_location in self.nets_visited.get(self.net_index, set()):
-                reward = 0 # non-Penalize for revisiting a location of the privous 2pin pair
-
-            
             if new_location == self.target_point:
                 print("Finish a 2-pin pair", self.current_point, self.target_point)
                 reward = 100
                 done = True
-
-            if self.get_possible_actions() == [False, False, False, False, False, False]:
+            elif self.get_possible_actions() == [False, False, False, False, False, False]:
                 print("No possible further move")
                 done = True
                 reward = -10 * np.linalg.norm(np.array(self.target_point) - np.array(self.current_point))
@@ -306,6 +305,21 @@ class RoutingEnv_v2(gym.Env):
                 print("Fail to move to the next location, exceed the fail count")
 
         return self.state, reward, done, {}
+
+# givent the final env, return total congestion (sum of edge overflows), max overflow, and total wire length
+def evaluation(env):
+    total_congestion = 0
+    min_capacity = 0
+    total_wire_length = 0
+    capacity_info_h = env.capacity_info_h
+    capacity_info_v = env.capacity_info_v
+
+    # flatten the capacity_info_h and capacity_info_v, combine them together, and remove all -inf
+    capacity_info_h = capacity_info_h.flatten()
+    capacity_info_v = capacity_info_v.flatten()
+    capacity_info = np.concatenate((capacity_info_h, capacity_info_v)).flatten()
+    capacity_info = capacity_info[capacity_info != -np.inf]
+    
 
 
 
@@ -409,7 +423,7 @@ def prepareTwoPinList_allNet(nets_scaled):
 
 if __name__ == '__main__':
 
-    grid_size, vertical_capacity, horizontal_capacity, minimum_width, minimum_spacing, via_spacing, grid_origin, grid_dimensions, nets, nets_scaled, adjustments, net_name2id, net_id2name = load_input_file(input_file_path='benchmark_reduced/test_benchmark_1.gr')
+    grid_size, vertical_capacity, horizontal_capacity, minimum_width, minimum_spacing, via_spacing, grid_origin, grid_dimensions, nets, nets_scaled, adjustments, net_name2id, net_id2name = load_input_file(input_file_path='benchmark/test_benchmark_1.gr')
 
     env = RoutingEnv_v2(grid_size=grid_size, vertical_capacity=vertical_capacity, horizontal_capacity=horizontal_capacity, 
                      minimum_width=minimum_width, minimum_spacing=minimum_spacing, via_spacing=via_spacing, 
