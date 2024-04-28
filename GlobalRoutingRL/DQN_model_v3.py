@@ -119,7 +119,7 @@ if __name__ == '__main__':
     # state_size = 6  # Given state size
     action_size = 6  # 4 directions and 2 layer transitions
 
-    grid_size, vertical_capacity, horizontal_capacity, minimum_width, minimum_spacing, via_spacing, grid_origin, grid_dimensions, nets, nets_scaled, adjustments, net_name2id, net_id2name = load_input_file(input_file_path='benchmark/test_benchmark_5.gr')
+    grid_size, vertical_capacity, horizontal_capacity, minimum_width, minimum_spacing, via_spacing, grid_origin, grid_dimensions, nets, nets_scaled, adjustments, net_name2id, net_id2name = load_input_file(input_file_path='benchmark/test_benchmark_1.gr')
 
     env = RoutingEnv(grid_size=grid_size, vertical_capacity=vertical_capacity, horizontal_capacity=horizontal_capacity, 
                      minimum_width=minimum_width, minimum_spacing=minimum_spacing, via_spacing=via_spacing, 
@@ -226,5 +226,12 @@ if __name__ == '__main__':
     total_wirelength = 0
     for net_index in range (len(nets_mst)):
         print("net_index: ", net_index, env.nets_visited[net_index])
-        total_wirelength += len(env.nets_visited[net_index])
+        total_wirelength += len(env.nets_visited[net_index]) - 1
     print("total wirelength: ", total_wirelength)
+
+    mask_h = (env.capacity_info_h < 0) & (env.capacity_info_h > -10)
+    mask_v = (env.capacity_info_v < 0) & (env.capacity_info_v > -10)
+    overflow = np.sum(env.capacity_info_h[mask_h]) + np.sum(env.capacity_info_v[mask_v])
+    print("overflow: ", overflow)
+
+
