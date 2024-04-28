@@ -248,8 +248,8 @@ class RoutingEnv(gym.Env):
         # # Penalize for moving away from the target
         # if np.dot(np.array(move), np.array(self.target_point) - np.array(self.current_point)) < 0:
         #     reward -= 1
-        print("current_point: ", self.current_point)
-        print("fail_count: ", self.fail_count)
+        # print("current_point: ", self.current_point)
+        # print("fail_count: ", self.fail_count)
 
         # check if the new location is valid
         if self.check_valid_move(action, new_location):
@@ -294,7 +294,26 @@ class RoutingEnv(gym.Env):
 
         return self.state, reward, done, {}
 
+def evaluation(env):
+    total_congestion = 0
+    min_capacity = 0
+    total_wire_length = 0
+    capacity_info_h = env.capacity_info_h
+    capacity_info_v = env.capacity_info_v
 
+    # flatten the capacity_info_h and capacity_info_v, combine them together, and remove all -inf
+    capacity_info_h = capacity_info_h.flatten()
+    capacity_info_v = capacity_info_v.flatten()
+    capacity_info = np.concatenate((capacity_info_h, capacity_info_v)).flatten()
+    capacity_info = capacity_info[capacity_info != -np.inf]
+
+    min_capacity = np.min(capacity_info)
+    # total congestion is the sum of negtive values in capacity_info
+    total_congestion = np.sum(capacity_info[capacity_info < 0])
+    for i in env.nets_visited:
+        total_wire_length += len(env.nets_visited[i])
+    
+    return total_congestion, min_capacity, total_wire_length
 
 
 
