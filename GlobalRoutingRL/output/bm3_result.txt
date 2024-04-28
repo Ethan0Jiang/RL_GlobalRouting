@@ -1,0 +1,13 @@
+Benchmark: benchmark/test_benchmark_3.gr
+
+DQN-based router
+Total congestion: 0.0
+Minimum capacity: 0.0
+Total wire length: 398
+Runtime: 347.9459092617035 seconds
+
+MCTS-based router
+Total congestion: 0.0
+Minimum capacity: 2.0
+Total wire length: 119
+Runtime: 0.819054365158081 seconds
