@@ -48,6 +48,11 @@ If you prefer, you can run the project with individual Python commands:
    python main.py benchmark/test_benchmark_4.gr output/bm4_result.txt
    python main.py benchmark/test_benchmark_5.gr output/bm5_result.txt
    ```
+3. To evaluate the MCTS, user can run:
+   ```bash
+   python eval_mcts.py benchmark/test_benchmark_5.gr output/mcts_eval/bm5_mcts_result.txt 10,20,50,100 2,5,10,20
+   ```
+
 
 These commands generate output files for each benchmark, providing insights into routing performance and results.
 
