@@ -94,9 +94,10 @@ class MCTSTree:
 
 
 class MCTS:
-    def __init__(self, exploration_constant=1.4, num_simulations=100):
+    def __init__(self, exploration_constant=1.4, num_simulations=100, num_actions=10):
         self.tree = MCTSTree(exploration_constant=exploration_constant)
         self.num_simulations = num_simulations
+        self.num_actions = num_actions
 
     def perform_mcts(self, env, initial_state):
         self.tree.set_root(state=initial_state, env_copy=copy.deepcopy(env))  # Set root with env copy
@@ -115,7 +116,7 @@ class MCTS:
                 self.tree.backpropagate(current_node, reward)
 
         # Retrieve the best sequence of actions
-        return self.get_best_action_sequence(10)  # Return the top N action sequence
+        return self.get_best_action_sequence(self.num_actions)  # Return the top N action sequence
 
     def simulate(self, node):
         env_copy = copy.deepcopy(node.env_copy)
@@ -176,7 +177,7 @@ class MCTS:
     
 
 
-def solve_routing_with_mcts(input_file_path):
+def solve_routing_with_mcts(input_file_path, num_simulations=50, num_actions=10):
     # Initialization
     state_size = 18  # Given state size
     action_size = 6  # 4 directions and 2 layer transitions
@@ -214,7 +215,7 @@ def solve_routing_with_mcts(input_file_path):
     # Loop to solve the routing problem with episodes
     while True:
         # Initialize a MCTS and perform the action sequence
-        mcts = MCTS(exploration_constant=0.7, num_simulations=50)
+        mcts = MCTS(exploration_constant=0.7, num_simulations=num_simulations, num_actions=num_actions)
         action_sequence, finish_2_pin_pair = mcts.perform_mcts(env, env.state)
         node_visited = {}
 
@@ -278,7 +279,7 @@ def solve_routing_with_mcts(input_file_path):
 # Main block that calls the function
 if __name__ == '__main__':
     file_path = 'benchmark/test_benchmark_6.gr'
-    total_congestion, min_capacity, total_wire_length = solve_routing_with_mcts(file_path)  # Call the function with the provided file path
+    total_congestion, min_capacity, total_wire_length = solve_routing_with_mcts(file_path, num_simulations=50, num_actions=10)
     print("Total congestion:", total_congestion)
     print("Minimum capacity:", min_capacity)
     print("Total wire length:", total_wire_length)

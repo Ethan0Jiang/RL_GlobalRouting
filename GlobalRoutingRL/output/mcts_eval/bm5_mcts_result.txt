@@ -1,0 +1,33 @@
+Benchmark: benchmark/test_benchmark_5.gr
+
+Configuration: Simulations=10 | Actions=2
+
+Configuration: Simulations=10 | Actions=5
+
+Configuration: Simulations=10 | Actions=10
+
+Configuration: Simulations=10 | Actions=20
+
+Configuration: Simulations=20 | Actions=2
+
+Configuration: Simulations=20 | Actions=5
+
+Configuration: Simulations=20 | Actions=10
+
+Configuration: Simulations=20 | Actions=20
+
+Configuration: Simulations=50 | Actions=2
+
+Configuration: Simulations=50 | Actions=5
+
+Configuration: Simulations=50 | Actions=10
+
+Configuration: Simulations=50 | Actions=20
+
+Configuration: Simulations=100 | Actions=2
+
+Configuration: Simulations=100 | Actions=5
+
+Configuration: Simulations=100 | Actions=10
+
+Configuration: Simulations=100 | Actions=20
