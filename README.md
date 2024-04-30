@@ -21,9 +21,10 @@ Here's an overview of the key files and directories in this repository:
 To run the project, you can use either the provided bash script or individual Python commands.
 
 ### Using the Bash Script
-1. Open a terminal and navigate to the project directory:
+1. Open a terminal and navigate to the project directory, and install the conda env:
    ```bash
-   cd ./GlobalRoutingRL
+   cd ./GlobalRoutingRL/
+   conda env create -f environment.yml
    ```
 2. Grant execute permissions to the bash script:
    ```bash
